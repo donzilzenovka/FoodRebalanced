@@ -24,15 +24,22 @@ public class FoodData {
 
     @Override
     public String toString() {
-        return "FoodData[hunger=" + hunger + ", saturation=" + saturation +
-            ", effects=" + effects + ", enchantments=" + enchantments + "]";
+        return "FoodData[hunger=" + hunger
+            + ", saturation="
+            + saturation
+            + ", effects="
+            + effects
+            + ", enchantments="
+            + enchantments
+            + "]";
     }
 
     public static class EffectData {
-        public String id;          // namespaced id, e.g., minecraft:regeneration
-        public Integer duration;   // ticks
+
+        public String id; // namespaced id, e.g., minecraft:regeneration
+        public Integer duration; // ticks
         public Integer amplifier;
-        public Float chance;       // 0.0 - 1.0
+        public Float chance; // 0.0 - 1.0
 
         public EffectData() {}
 
@@ -45,13 +52,20 @@ public class FoodData {
 
         @Override
         public String toString() {
-            return "EffectData[id=" + id + ", duration=" + duration +
-                ", amplifier=" + amplifier + ", chance=" + chance + "]";
+            return "EffectData[id=" + id
+                + ", duration="
+                + duration
+                + ", amplifier="
+                + amplifier
+                + ", chance="
+                + chance
+                + "]";
         }
     }
 
     public static class EnchantData {
-        public String id;       // namespaced id or numeric id as string
+
+        public String id; // namespaced id or numeric id as string
         public Integer level;
 
         public EnchantData() {}

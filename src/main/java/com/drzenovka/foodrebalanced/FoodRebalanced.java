@@ -1,5 +1,13 @@
 package com.drzenovka.foodrebalanced;
 
+import java.io.File;
+import java.lang.reflect.Field;
+import java.util.Random;
+
+import net.minecraft.item.ItemFood;
+import net.minecraft.item.ItemStack;
+import net.minecraft.potion.Potion;
+
 import com.drzenovka.foodrebalanced.command.CommandFoodRebalanced;
 import com.drzenovka.foodrebalanced.config.FoodConfigManager;
 import com.drzenovka.foodrebalanced.handler.FoodEffectHandler;
@@ -10,15 +18,6 @@ import cpw.mods.fml.common.event.FMLPostInitializationEvent;
 import cpw.mods.fml.common.event.FMLPreInitializationEvent;
 import cpw.mods.fml.common.event.FMLServerStartingEvent;
 import cpw.mods.fml.common.registry.GameData;
-
-import net.minecraft.item.ItemFood;
-import net.minecraft.item.ItemStack;
-import net.minecraft.potion.Potion;
-import net.minecraft.server.MinecraftServer;
-
-import java.io.File;
-import java.lang.reflect.Field;
-import java.util.Random;
 
 @Mod(modid = FoodRebalanced.MODID, name = FoodRebalanced.NAME, version = FoodRebalanced.VERSION)
 public class FoodRebalanced {
@@ -65,10 +64,11 @@ public class FoodRebalanced {
     private void applyJsonOverridesToFoodItems() {
         for (Object obj : GameData.getItemRegistry()) {
             if (!(obj instanceof ItemFood food)) continue;
-            String id = GameData.getItemRegistry().getNameForObject(food);
+            String id = GameData.getItemRegistry()
+                .getNameForObject(food);
 
-            com.drzenovka.foodrebalanced.config.FoodConfigManager.FoodData data =
-                FoodConfigManager.getFoodData(new ItemStack(food));
+            com.drzenovka.foodrebalanced.config.FoodConfigManager.FoodData data = FoodConfigManager
+                .getFoodData(new ItemStack(food));
             if (data == null) continue;
 
             try {
