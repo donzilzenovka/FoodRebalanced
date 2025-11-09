@@ -11,12 +11,13 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-import net.minecraft.client.Minecraft;
 import net.minecraft.item.ItemFood;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.nbt.NBTTagList;
 import net.minecraft.potion.Potion;
+import net.minecraft.server.MinecraftServer;
+import net.minecraft.util.ChatComponentText;
 
 import com.drzenovka.foodrebalanced.FoodRebalanced;
 import com.google.gson.Gson;
@@ -25,9 +26,6 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 
 import cpw.mods.fml.common.registry.GameData;
-import net.minecraft.server.MinecraftServer;
-import net.minecraft.util.ChatComponentText;
-import net.minecraft.util.IChatComponent;
 
 public class FoodConfigManager {
 
@@ -60,19 +58,21 @@ public class FoodConfigManager {
 
                         // Validate required fields
                         if (data.hunger == null) throw new IllegalArgumentException("Missing hunger for food: " + key);
-                        if (data.saturation == null) throw new IllegalArgumentException("Missing saturation for food: " + key);
+                        if (data.saturation == null)
+                            throw new IllegalArgumentException("Missing saturation for food: " + key);
 
                         // Validate potion effects
                         if (data.effects != null) {
                             for (FoodData.EffectData ed : data.effects) {
                                 if (ed.id == null || ed.id.isEmpty())
                                     throw new IllegalArgumentException("Effect ID missing for food: " + key);
-                                if (ed.duration == null || ed.duration <= 0)
-                                    throw new IllegalArgumentException("Effect duration invalid for food: " + key + ", effect: " + ed.id);
-                                if (ed.amplifier == null || ed.amplifier < 0)
-                                    throw new IllegalArgumentException("Effect amplifier invalid for food: " + key + ", effect: " + ed.id);
+                                if (ed.duration == null || ed.duration <= 0) throw new IllegalArgumentException(
+                                    "Effect duration invalid for food: " + key + ", effect: " + ed.id);
+                                if (ed.amplifier == null || ed.amplifier < 0) throw new IllegalArgumentException(
+                                    "Effect amplifier invalid for food: " + key + ", effect: " + ed.id);
                                 if (ed.chance == null || ed.chance < 0f || ed.chance > 1f)
-                                    throw new IllegalArgumentException("Effect chance invalid for food: " + key + ", effect: " + ed.id);
+                                    throw new IllegalArgumentException(
+                                        "Effect chance invalid for food: " + key + ", effect: " + ed.id);
                             }
                         }
 
@@ -85,7 +85,8 @@ public class FoodConfigManager {
                         e.printStackTrace();
 
                         // Send chat message if a player is present
-                        sendChatMessageToAllPlayers("§c[FoodRebalanced] Invalid JSON for food " + key + ": " + e.getMessage());
+                        sendChatMessageToAllPlayers(
+                            "§c[FoodRebalanced] Invalid JSON for food " + key + ": " + e.getMessage());
 
                         // Abort loading early
                         return;
@@ -107,7 +108,8 @@ public class FoodConfigManager {
         for (Object obj : GameData.getItemRegistry()) {
             if (!(obj instanceof ItemFood)) continue;
             ItemFood food = (ItemFood) obj;
-            String id = GameData.getItemRegistry().getNameForObject(food);
+            String id = GameData.getItemRegistry()
+                .getNameForObject(food);
             String key = getKey(id, 0);
             if (id == null || FOOD_DATA.containsKey(key)) continue;
 
@@ -147,7 +149,7 @@ public class FoodConfigManager {
     /** Create FoodData for an ItemStack, detecting hunger, saturation, and effects */
     private static FoodData createFoodData(ItemStack stack) {
         FoodData data = new FoodData();
-            data.name = stack.getDisplayName();
+        data.name = stack.getDisplayName();
 
         if (stack.getItem() instanceof ItemFood food) {
             data.hunger = food.func_150905_g(stack);
@@ -182,7 +184,8 @@ public class FoodConfigManager {
     public static FoodData getFoodData(ItemStack stack) {
         if (stack == null) return null;
 
-        String id = GameData.getItemRegistry().getNameForObject(stack.getItem());
+        String id = GameData.getItemRegistry()
+            .getNameForObject(stack.getItem());
         int meta = stack.getItemDamage();
 
         String keyExact = getKey(id, meta);
@@ -199,6 +202,7 @@ public class FoodConfigManager {
 
     /** Data structure compatible with Gson */
     public static class FoodData {
+
         public String name;
         public Integer hunger;
         public Float saturation;
@@ -217,7 +221,6 @@ public class FoodConfigManager {
             public Integer duration;
             public Integer amplifier;
             public Float chance;
-
 
             public EffectData(String id, int duration, int amplifier, float chance) {
                 this.id = id;
@@ -255,12 +258,12 @@ public class FoodConfigManager {
             float chance = effectNBT.hasKey("Chance") ? effectNBT.getFloat("Chance") : 1.0f;
 
             if (id >= 0 && id < Potion.potionTypes.length && Potion.potionTypes[id] != null) {
-                data.effects.add(new FoodData.EffectData(
-                    "minecraft:" + Potion.potionTypes[id].getName(),
-                    duration,
-                    amplifier,
-                    chance
-                ));
+                data.effects.add(
+                    new FoodData.EffectData(
+                        "minecraft:" + Potion.potionTypes[id].getName(),
+                        duration,
+                        amplifier,
+                        chance));
             }
         }
     }
@@ -272,7 +275,8 @@ public class FoodConfigManager {
 
     private static String getKey(ItemStack stack) {
         if (stack == null) return null;
-        String id = GameData.getItemRegistry().getNameForObject(stack.getItem());
+        String id = GameData.getItemRegistry()
+            .getNameForObject(stack.getItem());
         return getKey(id, stack.getItemDamage());
     }
 
@@ -285,7 +289,8 @@ public class FoodConfigManager {
         // Send to all players on the server
         MinecraftServer server = MinecraftServer.getServer();
         if (server != null && server.getConfigurationManager() != null) {
-            server.getConfigurationManager().sendChatMsg(chat);
+            server.getConfigurationManager()
+                .sendChatMsg(chat);
         }
     }
 }

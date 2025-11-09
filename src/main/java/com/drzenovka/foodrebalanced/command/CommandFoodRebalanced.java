@@ -31,7 +31,7 @@ public class CommandFoodRebalanced extends CommandBase {
             if (canCommandSenderUseCommand(sender)) {
                 // FoodEffectHandler.reloadConfig();
                 FoodConfigManager.loadConfig();
-                //sender.addChatMessage(new ChatComponentText("[FoodRebalanced] loading from food_overrides.json."));
+                // sender.addChatMessage(new ChatComponentText("[FoodRebalanced] loading from food_overrides.json."));
             } else {
                 sender.addChatMessage(
                     new ChatComponentText("[FoodRebalanced] You do not have permission to execute this command."));

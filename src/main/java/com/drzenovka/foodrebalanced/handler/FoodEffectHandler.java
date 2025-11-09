@@ -37,7 +37,6 @@ public class FoodEffectHandler {
             food.potionEffectProbability = 0f;
         }
 
-
         FoodData data = FoodConfigManager.getFoodData(stack);
         if (data == null) {
             FoodConfigManager.registerEatenItem(stack);
@@ -45,7 +44,7 @@ public class FoodEffectHandler {
             if (data == null) return;
         }
 
-        //System.out.println("eating: " + data.name);
+        // System.out.println("eating: " + data.name);
 
         EntityPlayer player = event.entityPlayer;
         ItemFood item = (ItemFood) stack.getItem();
@@ -59,11 +58,14 @@ public class FoodEffectHandler {
         float vanillaSaturation = item.func_150906_h(stack);
 
         if (!player.worldObj.isRemote) {
-            if (player.getFoodStats().getFoodLevel() <= 20) {
+            if (player.getFoodStats()
+                .getFoodLevel() <= 20) {
                 // Remove the vanilla contribution first
-                player.getFoodStats().addStats(-vanillaHunger, -vanillaSaturation);
+                player.getFoodStats()
+                    .addStats(-vanillaHunger, -vanillaSaturation);
                 // Apply the JSON override
-                player.getFoodStats().addStats(jsonHunger, jsonSaturation);
+                player.getFoodStats()
+                    .addStats(jsonHunger, jsonSaturation);
             }
 
         }
@@ -75,19 +77,19 @@ public class FoodEffectHandler {
 
                 float chance = (ed.chance == null || ed.chance <= 0f) ? 1f : ed.chance;
                 if (RNG.nextFloat() > chance) continue;
-                //boolean applyEffect = RNG.nextFloat() <= chance;
+                // boolean applyEffect = RNG.nextFloat() <= chance;
 
                 // Debug log: show what would happen
-                //System.out.println("[FoodEffectHandler] Trying to apply potion effect from food: "
-                //    + ed.id + ", duration=" + ed.duration + ", amplifier=" + ed.amplifier
-                //    + ", chance=" + chance + ", roll=" + applyEffect);
+                // System.out.println("[FoodEffectHandler] Trying to apply potion effect from food: "
+                // + ed.id + ", duration=" + ed.duration + ", amplifier=" + ed.amplifier
+                // + ", chance=" + chance + ", roll=" + applyEffect);
 
-                //if (!applyEffect) continue;
+                // if (!applyEffect) continue;
 
                 Potion potion = getPotionByName(ed.id);
                 if (potion != null && ed.duration != null && ed.duration > 0) {
                     int amp = (ed.amplifier != null) ? ed.amplifier : 0;
-                    int durationTicks = ed.duration * 20; //ticks to seconds for easier config
+                    int durationTicks = ed.duration * 20; // ticks to seconds for easier config
                     player.addPotionEffect(new PotionEffect(potion.id, durationTicks, amp));
                 }
             }
@@ -98,31 +100,48 @@ public class FoodEffectHandler {
         if (name == null) return null;
 
         // normalize the string
-        name = name.toLowerCase().trim();
+        name = name.toLowerCase()
+            .trim();
 
         // strip prefixes added by JSON from other mods
         if (name.startsWith("minecraft:")) name = name.substring(10);
         if (name.startsWith("potion.")) name = name.substring(7);
 
         switch (name) {
-            case "regeneration": return Potion.regeneration;
-            case "absorption": return Potion.field_76444_x;
-            case "hunger": return Potion.hunger;
+            case "regeneration":
+                return Potion.regeneration;
+            case "absorption":
+                return Potion.field_76444_x;
+            case "hunger":
+                return Potion.hunger;
             case "strength":
-            case "damage_boost": return Potion.damageBoost;
+            case "damage_boost":
+                return Potion.damageBoost;
             case "heal":
-            case "instant_health": return Potion.heal;
-            case "instant_damage": return Potion.harm;
-            case "fire_resistance": return Potion.fireResistance;
-            case "resistance": return Potion.resistance;
-            case "speed": return Potion.moveSpeed;
-            case "slowness": return Potion.moveSlowdown;
-            case "poison": return Potion.poison;
-            case "wither": return Potion.wither;
-            case "night_vision": return Potion.nightVision;
-            case "invisibility": return Potion.invisibility;
-            case "water_breathing": return Potion.waterBreathing;
-            case "jump_boost": return Potion.jump;
+            case "instant_health":
+                return Potion.heal;
+            case "instant_damage":
+                return Potion.harm;
+            case "fire_resistance":
+                return Potion.fireResistance;
+            case "resistance":
+                return Potion.resistance;
+            case "speed":
+                return Potion.moveSpeed;
+            case "slowness":
+                return Potion.moveSlowdown;
+            case "poison":
+                return Potion.poison;
+            case "wither":
+                return Potion.wither;
+            case "night_vision":
+                return Potion.nightVision;
+            case "invisibility":
+                return Potion.invisibility;
+            case "water_breathing":
+                return Potion.waterBreathing;
+            case "jump_boost":
+                return Potion.jump;
         }
 
         // fallback: try reflection on Potion class fields
