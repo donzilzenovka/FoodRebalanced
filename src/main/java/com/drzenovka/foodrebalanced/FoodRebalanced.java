@@ -4,6 +4,7 @@ import java.io.File;
 import java.lang.reflect.Field;
 import java.util.Random;
 
+import net.minecraft.client.Minecraft;
 import net.minecraft.item.ItemFood;
 import net.minecraft.item.ItemStack;
 import net.minecraft.potion.Potion;
@@ -29,6 +30,7 @@ public class FoodRebalanced {
 
     public static File configDir;
     private static final Random RAND = new Random();
+    public static Minecraft mc;
 
     // --- MOD LIFECYCLE EVENTS ---
 

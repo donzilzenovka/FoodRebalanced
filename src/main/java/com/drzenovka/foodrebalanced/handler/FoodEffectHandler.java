@@ -29,6 +29,15 @@ public class FoodEffectHandler {
         ItemStack stack = event.item;
         if (stack == null || !(stack.getItem() instanceof ItemFood)) return;
 
+        if (stack.getItem() instanceof ItemFood food) {
+            // zero out vanilla potion effects
+            food.potionId = 0;
+            food.potionDuration = 0;
+            food.potionAmplifier = 0;
+            food.potionEffectProbability = 0f;
+        }
+
+
         FoodData data = FoodConfigManager.getFoodData(stack);
         if (data == null) {
             FoodConfigManager.registerEatenItem(stack);
@@ -36,7 +45,7 @@ public class FoodEffectHandler {
             if (data == null) return;
         }
 
-        System.out.println("eating: " + data.name);
+        //System.out.println("eating: " + data.name);
 
         EntityPlayer player = event.entityPlayer;
         ItemFood item = (ItemFood) stack.getItem();
@@ -66,11 +75,20 @@ public class FoodEffectHandler {
 
                 float chance = (ed.chance == null || ed.chance <= 0f) ? 1f : ed.chance;
                 if (RNG.nextFloat() > chance) continue;
+                //boolean applyEffect = RNG.nextFloat() <= chance;
+
+                // Debug log: show what would happen
+                //System.out.println("[FoodEffectHandler] Trying to apply potion effect from food: "
+                //    + ed.id + ", duration=" + ed.duration + ", amplifier=" + ed.amplifier
+                //    + ", chance=" + chance + ", roll=" + applyEffect);
+
+                //if (!applyEffect) continue;
 
                 Potion potion = getPotionByName(ed.id);
                 if (potion != null && ed.duration != null && ed.duration > 0) {
                     int amp = (ed.amplifier != null) ? ed.amplifier : 0;
-                    player.addPotionEffect(new PotionEffect(potion.id, ed.duration, amp));
+                    int durationTicks = ed.duration * 20; //ticks to seconds for easier config
+                    player.addPotionEffect(new PotionEffect(potion.id, durationTicks, amp));
                 }
             }
         }
@@ -78,15 +96,22 @@ public class FoodEffectHandler {
 
     private Potion getPotionByName(String name) {
         if (name == null) return null;
-        name = name.toLowerCase();
+
+        // normalize the string
+        name = name.toLowerCase().trim();
+
+        // strip prefixes added by JSON from other mods
         if (name.startsWith("minecraft:")) name = name.substring(10);
+        if (name.startsWith("potion.")) name = name.substring(7);
 
         switch (name) {
             case "regeneration": return Potion.regeneration;
             case "absorption": return Potion.field_76444_x;
             case "hunger": return Potion.hunger;
-            case "strength": case "damage_boost": return Potion.damageBoost;
-            case "heal": case "instant_health": return Potion.heal;
+            case "strength":
+            case "damage_boost": return Potion.damageBoost;
+            case "heal":
+            case "instant_health": return Potion.heal;
             case "instant_damage": return Potion.harm;
             case "fire_resistance": return Potion.fireResistance;
             case "resistance": return Potion.resistance;
@@ -99,6 +124,17 @@ public class FoodEffectHandler {
             case "water_breathing": return Potion.waterBreathing;
             case "jump_boost": return Potion.jump;
         }
+
+        // fallback: try reflection on Potion class fields
+        try {
+            java.lang.reflect.Field f = Potion.class.getField(name);
+            Object o = f.get(null);
+            if (o instanceof Potion) return (Potion) o;
+        } catch (Exception ignored) {}
+
+        // still nothing found
+        System.out.println("[FoodEffectHandler] Unknown potion ID: " + name);
         return null;
     }
+
 }

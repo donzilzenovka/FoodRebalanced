@@ -11,6 +11,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+import net.minecraft.client.Minecraft;
 import net.minecraft.item.ItemFood;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
@@ -24,6 +25,9 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 
 import cpw.mods.fml.common.registry.GameData;
+import net.minecraft.server.MinecraftServer;
+import net.minecraft.util.ChatComponentText;
+import net.minecraft.util.IChatComponent;
 
 public class FoodConfigManager {
 
@@ -48,20 +52,58 @@ public class FoodConfigManager {
         if (configFile.exists()) {
             try (Reader reader = new FileReader(configFile)) {
                 JsonObject obj = GSON.fromJson(reader, JsonObject.class);
+
                 for (Map.Entry<String, JsonElement> entry : obj.entrySet()) {
                     String key = entry.getKey();
-                    FoodData data = GSON.fromJson(entry.getValue(), FoodData.class);
+                    try {
+                        FoodData data = GSON.fromJson(entry.getValue(), FoodData.class);
 
-                    FOOD_DATA.put(key, data);
+                        // Validate required fields
+                        if (data.hunger == null) throw new IllegalArgumentException("Missing hunger for food: " + key);
+                        if (data.saturation == null) throw new IllegalArgumentException("Missing saturation for food: " + key);
+
+                        // Validate potion effects
+                        if (data.effects != null) {
+                            for (FoodData.EffectData ed : data.effects) {
+                                if (ed.id == null || ed.id.isEmpty())
+                                    throw new IllegalArgumentException("Effect ID missing for food: " + key);
+                                if (ed.duration == null || ed.duration <= 0)
+                                    throw new IllegalArgumentException("Effect duration invalid for food: " + key + ", effect: " + ed.id);
+                                if (ed.amplifier == null || ed.amplifier < 0)
+                                    throw new IllegalArgumentException("Effect amplifier invalid for food: " + key + ", effect: " + ed.id);
+                                if (ed.chance == null || ed.chance < 0f || ed.chance > 1f)
+                                    throw new IllegalArgumentException("Effect chance invalid for food: " + key + ", effect: " + ed.id);
+                            }
+                        }
+
+                        // Passed validation
+                        FOOD_DATA.put(key, data);
+
+                    } catch (Exception e) {
+                        // Print to console
+                        System.err.println("[FoodRebalanced] Invalid JSON for food " + key + ": " + e.getMessage());
+                        e.printStackTrace();
+
+                        // Send chat message if a player is present
+                        sendChatMessageToAllPlayers("§c[FoodRebalanced] Invalid JSON for food " + key + ": " + e.getMessage());
+
+                        // Abort loading early
+                        return;
+                    }
                 }
+
+                sendChatMessageToAllPlayers("[FoodRebalanced] Loaded " + FOOD_DATA.size() + " food entries from JSON.");
                 System.out.println("[FoodRebalanced] Loaded " + FOOD_DATA.size() + " food entries from JSON.");
+
             } catch (Exception e) {
-                System.err.println("[FoodRebalanced] Failed to load food_overrides.json");
+                System.err.println("[FoodRebalanced] Failed to load food_overrides.json: " + e.getMessage());
                 e.printStackTrace();
+                sendChatMessageToAllPlayers("[FoodRebalanced] Failed to load food_overrides.json: " + e.getMessage());
+                return;
             }
         }
 
-        // Generate missing vanilla entries using helper
+        // Generate missing vanilla entries
         for (Object obj : GameData.getItemRegistry()) {
             if (!(obj instanceof ItemFood)) continue;
             ItemFood food = (ItemFood) obj;
@@ -234,4 +276,16 @@ public class FoodConfigManager {
         return getKey(id, stack.getItemDamage());
     }
 
+    /** Utility to send chat messages to all players in red text */
+    public static void sendChatMessageToAllPlayers(String message) {
+        if (message == null || message.isEmpty()) return;
+
+        ChatComponentText chat = new ChatComponentText(message);
+
+        // Send to all players on the server
+        MinecraftServer server = MinecraftServer.getServer();
+        if (server != null && server.getConfigurationManager() != null) {
+            server.getConfigurationManager().sendChatMsg(chat);
+        }
+    }
 }
