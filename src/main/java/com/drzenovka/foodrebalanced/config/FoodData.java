@@ -6,31 +6,31 @@ import java.util.List;
 public class FoodData {
 
     // Use boxed types so Gson can omit fields when null
+    public Integer meta;
     public Integer hunger;
     public Float saturation;
     public List<EffectData> effects;
-    public List<EnchantData> enchantments;
 
     public FoodData() {
         this.effects = new ArrayList<>();
-        this.enchantments = new ArrayList<>();
     }
 
-    public FoodData(int hunger, float saturation) {
+    public FoodData(int meta, int hunger, float saturation) {
         this();
+        this.meta = meta;
         this.hunger = hunger;
         this.saturation = saturation;
     }
 
     @Override
     public String toString() {
-        return "FoodData[hunger=" + hunger
+        return "FoodData[meta=" + meta
+            +", hunger="
+            + hunger
             + ", saturation="
             + saturation
             + ", effects="
             + effects
-            + ", enchantments="
-            + enchantments
             + "]";
     }
 
@@ -60,24 +60,6 @@ public class FoodData {
                 + ", chance="
                 + chance
                 + "]";
-        }
-    }
-
-    public static class EnchantData {
-
-        public String id; // namespaced id or numeric id as string
-        public Integer level;
-
-        public EnchantData() {}
-
-        public EnchantData(String id, int level) {
-            this.id = id;
-            this.level = level;
-        }
-
-        @Override
-        public String toString() {
-            return "EnchantData[id=" + id + ", level=" + level + "]";
         }
     }
 }

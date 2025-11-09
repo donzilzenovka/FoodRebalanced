@@ -6,7 +6,6 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.io.Reader;
 import java.io.Writer;
-import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -14,6 +13,8 @@ import java.util.Map;
 
 import net.minecraft.item.ItemFood;
 import net.minecraft.item.ItemStack;
+import net.minecraft.nbt.NBTTagCompound;
+import net.minecraft.nbt.NBTTagList;
 import net.minecraft.potion.Potion;
 
 import com.drzenovka.foodrebalanced.FoodRebalanced;
@@ -57,54 +58,18 @@ public class FoodConfigManager {
             }
         }
 
-        // Generate vanilla food entries if missing
+        // Generate missing vanilla entries using helper
         for (Object obj : GameData.getItemRegistry()) {
             if (!(obj instanceof ItemFood)) continue;
             ItemFood food = (ItemFood) obj;
-            String id = GameData.getItemRegistry().getNameForObject(food);
+            String id = GameData.getItemRegistry()
+                .getNameForObject(food);
             if (id == null || FOOD_DATA.containsKey(id)) continue;
 
-            FoodData data = new FoodData();
-            data.hunger = food.func_150905_g(new ItemStack(food));
-            data.saturation = food.func_150906_h(new ItemStack(food));
-            data.effects = new ArrayList<>();
-            data.enchantments = new ArrayList<>();
-
-            FOOD_DATA.put(id, data);
+            FOOD_DATA.put(id, createFoodData(new ItemStack(food)));
         }
 
-        // Save merged JSON
         saveConfig();
-    }
-
-
-    public static void registerEatenItem(ItemStack stack, int hunger, float saturation) {
-        if (stack == null) return;
-
-        String id = GameData.getItemRegistry().getNameForObject(stack.getItem());
-        if (id == null) id = stack.getUnlocalizedName(); // fallback if obfuscated
-
-        if (FOOD_DATA.containsKey(id)) return; // already registered
-
-        FoodData data = new FoodData(hunger, saturation);
-        data.effects = new ArrayList<>();
-        data.enchantments = new ArrayList<>();
-
-        FOOD_DATA.put(id, data);
-        saveConfig(); // persist immediately
-
-        // Log registration with timestamp
-        String time = java.time.LocalDateTime.now().toString();
-        System.out.println("[FoodRebalanced] Registered new edible item: " + id + " at " + time
-            + " (hunger=" + hunger + ", saturation=" + saturation + ")");
-    }
-
-
-
-    /** Reload config at runtime */
-    public static void reload() {
-        loadConfig();
-        System.out.println("[FoodRebalanced] Config reloaded.");
     }
 
     /** Save current FOOD_DATA to JSON */
@@ -122,6 +87,54 @@ public class FoodConfigManager {
         }
     }
 
+    public static void registerEatenItem(ItemStack stack) {
+        if (stack == null) return;
+
+        String id = GameData.getItemRegistry()
+            .getNameForObject(stack.getItem());
+        if (id == null || FOOD_DATA.containsKey(id)) return;
+
+        FOOD_DATA.put(id, createFoodData(stack));
+        System.out.println("[FoodRebalanced] Registered new edible item: " + id + " at " + System.currentTimeMillis());
+
+        saveConfig();
+    }
+
+    /** Create FoodData for an ItemStack, detecting hunger, saturation, and effects */
+    private static FoodData createFoodData(ItemStack stack) {
+        FoodData data = new FoodData();
+
+        data.meta = stack.getItemDamage(); // <-- store item damage / meta
+
+        if (stack.getItem() instanceof ItemFood food) {
+            data.hunger = food.func_150905_g(stack);
+            data.saturation = food.func_150906_h(stack);
+            data.effects = new ArrayList<>();
+
+            // Detect vanilla potion effects
+            try {
+                int potionId = food.potionId;
+                int duration = food.potionDuration;
+                int amplifier = food.potionAmplifier;
+                float chance = food.potionEffectProbability;
+
+                if (potionId > 0 && potionId < Potion.potionTypes.length) {
+                    Potion potion = Potion.potionTypes[potionId];
+                    if (potion != null) {
+                        data.effects
+                            .add(new FoodData.EffectData("minecraft:" + potion.getName(), duration, amplifier, chance));
+                    }
+                }
+            } catch (Exception ignored) {}
+
+            addNBTPotionEffects(stack, data);
+        }
+
+        if (data.effects == null) data.effects = new ArrayList<>();
+
+        return data;
+    }
+
     /** Get FoodData for an ItemStack */
     public static FoodData getFoodData(ItemStack stack) {
         if (stack == null) return null;
@@ -130,25 +143,13 @@ public class FoodConfigManager {
         return FOOD_DATA.get(id);
     }
 
-    /** Reflection helper */
-    private static Field getFieldAny(String... names) throws NoSuchFieldException {
-        for (String n : names) {
-            try {
-                Field f = ItemFood.class.getDeclaredField(n);
-                f.setAccessible(true);
-                return f;
-            } catch (NoSuchFieldException ignored) {}
-        }
-        throw new NoSuchFieldException("No matching field found in " + ItemFood.class);
-    }
-
     /** Data structure compatible with Gson */
     public static class FoodData {
 
+        public int meta;
         public Integer hunger;
         public Float saturation;
         public List<EffectData> effects = new ArrayList<>();
-        public List<EnchantData> enchantments = new ArrayList<>();
 
         public FoodData() {}
 
@@ -164,7 +165,6 @@ public class FoodConfigManager {
             public Integer amplifier;
             public Float chance;
 
-            public EffectData() {}
 
             public EffectData(String id, int duration, int amplifier, float chance) {
                 this.id = id;
@@ -187,4 +187,29 @@ public class FoodConfigManager {
             }
         }
     }
+
+    private static void addNBTPotionEffects(ItemStack stack, FoodData data) {
+        if (!stack.hasTagCompound()) return;
+        NBTTagCompound nbt = stack.getTagCompound();
+
+        if (!nbt.hasKey("CustomPotionEffects")) return;
+        NBTTagList effectList = nbt.getTagList("CustomPotionEffects", 10); // 10 = Compound tag
+        for (int i = 0; i < effectList.tagCount(); i++) {
+            NBTTagCompound effectNBT = effectList.getCompoundTagAt(i);
+            int id = effectNBT.getInteger("Id");
+            int duration = effectNBT.getInteger("Duration");
+            int amplifier = effectNBT.getInteger("Amplifier");
+            float chance = effectNBT.hasKey("Chance") ? effectNBT.getFloat("Chance") : 1.0f;
+
+            if (id >= 0 && id < Potion.potionTypes.length && Potion.potionTypes[id] != null) {
+                data.effects.add(new FoodData.EffectData(
+                    "minecraft:" + Potion.potionTypes[id].getName(),
+                    duration,
+                    amplifier,
+                    chance
+                ));
+            }
+        }
+    }
+
 }

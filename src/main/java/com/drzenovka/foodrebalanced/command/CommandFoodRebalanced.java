@@ -9,7 +9,7 @@ import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.util.ChatComponentText;
 
-import com.drzenovka.foodrebalanced.handler.FoodEffectHandler;
+import com.drzenovka.foodrebalanced.config.FoodConfigManager;
 
 import cpw.mods.fml.common.FMLCommonHandler;
 
@@ -17,19 +17,20 @@ public class CommandFoodRebalanced extends CommandBase {
 
     @Override
     public String getCommandName() {
-        return "fb";
+        return "fr";
     }
 
     @Override
     public String getCommandUsage(ICommandSender sender) {
-        return "/fb reload - Reloads the food_overrides.json configuration (OP only)";
+        return "/fr reload - Reloads the food_overrides.json configuration (OP only)";
     }
 
     @Override
     public void processCommand(ICommandSender sender, String[] args) {
         if (args.length == 1 && args[0].equalsIgnoreCase("reload")) {
             if (canCommandSenderUseCommand(sender)) {
-                FoodEffectHandler.reloadConfig();
+                // FoodEffectHandler.reloadConfig();
+                FoodConfigManager.loadConfig();
                 sender.addChatMessage(new ChatComponentText("[FoodRebalanced] food_overrides.json reloaded."));
             } else {
                 sender.addChatMessage(

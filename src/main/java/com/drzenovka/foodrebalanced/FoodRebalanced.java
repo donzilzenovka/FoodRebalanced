@@ -25,6 +25,7 @@ public class FoodRebalanced {
     public static final String MODID = "foodrebalanced";
     public static final String VERSION = "1.0.0";
     public static final String NAME = "Food Rebalanced";
+    public static final String FILE_DIR = "FoodRebalanced";
 
     public static File configDir;
     private static final Random RAND = new Random();
@@ -34,11 +35,8 @@ public class FoodRebalanced {
     @Mod.EventHandler
     public void preInit(FMLPreInitializationEvent event) {
         // Setup config directory
-        configDir = new File(event.getModConfigurationDirectory(), MODID);
+        configDir = new File(event.getModConfigurationDirectory(), FILE_DIR);
         if (!configDir.exists()) configDir.mkdirs();
-
-        // Load or generate food overrides JSON
-        FoodConfigManager.loadConfig();
 
         // Register the FoodEffectHandler for runtime events
         FoodEffectHandler.register();
@@ -52,6 +50,10 @@ public class FoodRebalanced {
     @Mod.EventHandler
     public void serverStarting(FMLServerStartingEvent event) {
         event.registerServerCommand(new CommandFoodRebalanced());
+
+        // Load the food config after all items (vanilla + modded) are registered
+        FoodConfigManager.loadConfig();
+        System.out.println("[FoodRebalanced] Food config loaded at server start.");
     }
 
     @Mod.EventHandler

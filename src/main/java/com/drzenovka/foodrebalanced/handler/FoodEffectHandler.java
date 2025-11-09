@@ -13,8 +13,6 @@ import net.minecraftforge.event.entity.player.PlayerUseItemEvent;
 
 import com.drzenovka.foodrebalanced.config.FoodConfigManager;
 import com.drzenovka.foodrebalanced.config.FoodConfigManager.FoodData;
-import com.drzenovka.foodrebalanced.config.FoodConfigManager.FoodData.EffectData;
-import com.drzenovka.foodrebalanced.config.FoodConfigManager.FoodData.EnchantData;
 
 import cpw.mods.fml.common.eventhandler.EventPriority;
 import cpw.mods.fml.common.eventhandler.SubscribeEvent;
@@ -28,12 +26,6 @@ public class FoodEffectHandler {
         MinecraftForge.EVENT_BUS.register(new FoodEffectHandler());
     }
 
-    /** Reload the food overrides from config at runtime */
-    public static void reloadConfig() {
-        FoodConfigManager.reload();
-        System.out.println("[FoodRebalanced] FoodEffectHandler: overrides reloaded.");
-    }
-
     /** Called when a player finishes eating an item */
     @SubscribeEvent(priority = EventPriority.NORMAL)
     public void onPlayerUse(PlayerUseItemEvent.Finish event) {
@@ -41,9 +33,9 @@ public class FoodEffectHandler {
         if (stack == null) return;
 
         // First, register the item if it's not yet in the config
-        FoodData fd = FoodConfigManager.getFoodData(stack);
-        if (fd == null) {
-            // Use the item's real hunger/saturation if it's ItemFood, else default
+        FoodData data = FoodConfigManager.getFoodData(stack);
+        if (data == null) {
+            // create values then populate with real ones.
             int hunger = 1;
             float saturation = 0.3f;
 
@@ -52,16 +44,16 @@ public class FoodEffectHandler {
                 saturation = food.func_150906_h(stack);
             }
 
-            FoodConfigManager.registerEatenItem(stack, hunger, saturation);
-            fd = FoodConfigManager.getFoodData(stack);
-            if (fd == null) return; // safety
+            FoodConfigManager.registerEatenItem(stack);
+            data = FoodConfigManager.getFoodData(stack);
+            if (data == null) return; // safety
         }
 
         EntityPlayer player = event.entityPlayer;
 
         // Apply potion effects
-        if (fd.effects != null) {
-            for (FoodData.EffectData ed : fd.effects) {
+        if (data.effects != null) {
+            for (FoodData.EffectData ed : data.effects) {
                 if (ed == null || ed.id == null) continue;
 
                 float chance = (ed.chance == null || ed.chance <= 0f) ? 1f : ed.chance;
@@ -74,21 +66,7 @@ public class FoodEffectHandler {
                 }
             }
         }
-
-        // Apply enchantments
-        if (fd.enchantments != null) {
-            for (FoodData.EnchantData enf : fd.enchantments) {
-                if (enf == null || enf.id == null) continue;
-                Enchantment enc = getEnchantmentByName(enf.id);
-                if (enc != null && enf.level != null) {
-                    try {
-                        stack.addEnchantment(enc, enf.level);
-                    } catch (Exception ignored) {}
-                }
-            }
-        }
     }
-
 
     /** Resolve a Potion from a namespaced ID (e.g., minecraft:regeneration) */
     private Potion getPotionByName(String namespaced) {
