@@ -42,14 +42,17 @@ public class FoodConfigManager {
 
         File configFile = new File(configDir, "food_overrides.json");
 
+        FOOD_DATA.clear();
+
         // Load existing JSON
         if (configFile.exists()) {
             try (Reader reader = new FileReader(configFile)) {
                 JsonObject obj = GSON.fromJson(reader, JsonObject.class);
                 for (Map.Entry<String, JsonElement> entry : obj.entrySet()) {
-                    String id = entry.getKey();
+                    String key = entry.getKey();
                     FoodData data = GSON.fromJson(entry.getValue(), FoodData.class);
-                    FOOD_DATA.put(id, data);
+
+                    FOOD_DATA.put(key, data);
                 }
                 System.out.println("[FoodRebalanced] Loaded " + FOOD_DATA.size() + " food entries from JSON.");
             } catch (Exception e) {
@@ -62,11 +65,11 @@ public class FoodConfigManager {
         for (Object obj : GameData.getItemRegistry()) {
             if (!(obj instanceof ItemFood)) continue;
             ItemFood food = (ItemFood) obj;
-            String id = GameData.getItemRegistry()
-                .getNameForObject(food);
-            if (id == null || FOOD_DATA.containsKey(id)) continue;
+            String id = GameData.getItemRegistry().getNameForObject(food);
+            String key = getKey(id, 0);
+            if (id == null || FOOD_DATA.containsKey(key)) continue;
 
-            FOOD_DATA.put(id, createFoodData(new ItemStack(food)));
+            FOOD_DATA.put(key, createFoodData(new ItemStack(food)));
         }
 
         saveConfig();
@@ -90,12 +93,11 @@ public class FoodConfigManager {
     public static void registerEatenItem(ItemStack stack) {
         if (stack == null) return;
 
-        String id = GameData.getItemRegistry()
-            .getNameForObject(stack.getItem());
-        if (id == null || FOOD_DATA.containsKey(id)) return;
+        String key = getKey(stack);
+        if (key == null || FOOD_DATA.containsKey(key)) return;
 
-        FOOD_DATA.put(id, createFoodData(stack));
-        System.out.println("[FoodRebalanced] Registered new edible item: " + id + " at " + System.currentTimeMillis());
+        FOOD_DATA.put(key, createFoodData(stack));
+        System.out.println("[FoodRebalanced] Registered new edible item: " + key);
 
         saveConfig();
     }
@@ -103,8 +105,7 @@ public class FoodConfigManager {
     /** Create FoodData for an ItemStack, detecting hunger, saturation, and effects */
     private static FoodData createFoodData(ItemStack stack) {
         FoodData data = new FoodData();
-
-        data.meta = stack.getItemDamage(); // <-- store item damage / meta
+            data.name = stack.getDisplayName();
 
         if (stack.getItem() instanceof ItemFood food) {
             data.hunger = food.func_150905_g(stack);
@@ -138,15 +139,25 @@ public class FoodConfigManager {
     /** Get FoodData for an ItemStack */
     public static FoodData getFoodData(ItemStack stack) {
         if (stack == null) return null;
-        String id = GameData.getItemRegistry()
-            .getNameForObject(stack.getItem());
-        return FOOD_DATA.get(id);
+
+        String id = GameData.getItemRegistry().getNameForObject(stack.getItem());
+        int meta = stack.getItemDamage();
+
+        String keyExact = getKey(id, meta);
+        FoodData data = FOOD_DATA.get(keyExact);
+
+        if (data == null) {
+            // Fallback to base (meta-agnostic) definition
+            String keyBase = getKey(id, -1);
+            data = FOOD_DATA.get(keyBase);
+        }
+
+        return data;
     }
 
     /** Data structure compatible with Gson */
     public static class FoodData {
-
-        public int meta;
+        public String name;
         public Integer hunger;
         public Float saturation;
         public List<EffectData> effects = new ArrayList<>();
@@ -210,6 +221,17 @@ public class FoodConfigManager {
                 ));
             }
         }
+    }
+
+    private static String getKey(String id, int meta) {
+        if (id == null) return null;
+        return id + ":" + meta;
+    }
+
+    private static String getKey(ItemStack stack) {
+        if (stack == null) return null;
+        String id = GameData.getItemRegistry().getNameForObject(stack.getItem());
+        return getKey(id, stack.getItemDamage());
     }
 
 }

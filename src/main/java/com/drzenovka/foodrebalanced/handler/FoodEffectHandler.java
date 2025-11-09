@@ -2,7 +2,6 @@ package com.drzenovka.foodrebalanced.handler;
 
 import java.util.Random;
 
-import net.minecraft.enchantment.Enchantment;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.ItemFood;
 import net.minecraft.item.ItemStack;
@@ -21,37 +20,46 @@ public class FoodEffectHandler {
 
     private static final Random RNG = new Random();
 
-    /** Register event handler on the Forge event bus */
     public static void register() {
         MinecraftForge.EVENT_BUS.register(new FoodEffectHandler());
     }
 
-    /** Called when a player finishes eating an item */
-    @SubscribeEvent(priority = EventPriority.NORMAL)
+    @SubscribeEvent(priority = EventPriority.HIGHEST)
     public void onPlayerUse(PlayerUseItemEvent.Finish event) {
         ItemStack stack = event.item;
-        if (stack == null) return;
+        if (stack == null || !(stack.getItem() instanceof ItemFood)) return;
 
-        // First, register the item if it's not yet in the config
         FoodData data = FoodConfigManager.getFoodData(stack);
         if (data == null) {
-            // create values then populate with real ones.
-            int hunger = 1;
-            float saturation = 0.3f;
-
-            if (stack.getItem() instanceof ItemFood food) {
-                hunger = food.func_150905_g(stack);
-                saturation = food.func_150906_h(stack);
-            }
-
             FoodConfigManager.registerEatenItem(stack);
             data = FoodConfigManager.getFoodData(stack);
-            if (data == null) return; // safety
+            if (data == null) return;
         }
 
-        EntityPlayer player = event.entityPlayer;
+        System.out.println("eating: " + data.name);
 
-        // Apply potion effects
+        EntityPlayer player = event.entityPlayer;
+        ItemFood item = (ItemFood) stack.getItem();
+
+        // Override hunger and saturation from JSON if provided
+        int jsonHunger = data.hunger != null ? data.hunger : item.func_150905_g(stack);
+        float jsonSaturation = data.saturation != null ? data.saturation : item.func_150906_h(stack);
+
+        // Get vanilla values
+        int vanillaHunger = item.func_150905_g(stack);
+        float vanillaSaturation = item.func_150906_h(stack);
+
+        if (!player.worldObj.isRemote) {
+            if (player.getFoodStats().getFoodLevel() <= 20) {
+                // Remove the vanilla contribution first
+                player.getFoodStats().addStats(-vanillaHunger, -vanillaSaturation);
+                // Apply the JSON override
+                player.getFoodStats().addStats(jsonHunger, jsonSaturation);
+            }
+
+        }
+
+        // Handle potion effects
         if (data.effects != null) {
             for (FoodData.EffectData ed : data.effects) {
                 if (ed == null || ed.id == null) continue;
@@ -68,87 +76,29 @@ public class FoodEffectHandler {
         }
     }
 
-    /** Resolve a Potion from a namespaced ID (e.g., minecraft:regeneration) */
-    private Potion getPotionByName(String namespaced) {
-        if (namespaced == null) return null;
+    private Potion getPotionByName(String name) {
+        if (name == null) return null;
+        name = name.toLowerCase();
+        if (name.startsWith("minecraft:")) name = name.substring(10);
 
-        String n = namespaced.toLowerCase();
-        if (n.startsWith("minecraft:")) n = n.substring(10);
-
-        // Vanilla 1.7.10 potion mappings
-        switch (n) {
-            case "regeneration":
-                return Potion.regeneration;
-            case "absorption":
-                return Potion.field_76444_x;
-            case "hunger":
-                return Potion.hunger;
-            case "strength":
-            case "damage_boost":
-                return Potion.damageBoost;
-            case "heal":
-            case "instant_health":
-                return Potion.heal;
-            case "instant_damage":
-                return Potion.harm;
-            case "fire_resistance":
-                return Potion.fireResistance;
-            case "resistance":
-                return Potion.resistance;
-            case "speed":
-                return Potion.moveSpeed;
-            case "slowness":
-                return Potion.moveSlowdown;
-            case "poison":
-                return Potion.poison;
-            case "wither":
-                return Potion.wither;
-            case "night_vision":
-                return Potion.nightVision;
-            case "invisibility":
-                return Potion.invisibility;
-            case "water_breathing":
-                return Potion.waterBreathing;
-            case "jump_boost":
-                return Potion.jump;
+        switch (name) {
+            case "regeneration": return Potion.regeneration;
+            case "absorption": return Potion.field_76444_x;
+            case "hunger": return Potion.hunger;
+            case "strength": case "damage_boost": return Potion.damageBoost;
+            case "heal": case "instant_health": return Potion.heal;
+            case "instant_damage": return Potion.harm;
+            case "fire_resistance": return Potion.fireResistance;
+            case "resistance": return Potion.resistance;
+            case "speed": return Potion.moveSpeed;
+            case "slowness": return Potion.moveSlowdown;
+            case "poison": return Potion.poison;
+            case "wither": return Potion.wither;
+            case "night_vision": return Potion.nightVision;
+            case "invisibility": return Potion.invisibility;
+            case "water_breathing": return Potion.waterBreathing;
+            case "jump_boost": return Potion.jump;
         }
-
-        // Attempt reflection fallback
-        try {
-            java.lang.reflect.Field f = Potion.class.getField(n);
-            Object o = f.get(null);
-            if (o instanceof Potion) return (Potion) o;
-        } catch (Exception ignored) {}
-
-        return null;
-    }
-
-    /** Resolve an Enchantment from a namespaced ID or numeric string */
-    private Enchantment getEnchantmentByName(String namespaced) {
-        if (namespaced == null) return null;
-
-        String n = namespaced.toLowerCase();
-        if (n.startsWith("minecraft:")) n = n.substring(10);
-
-        // Try numeric ID first
-        try {
-            int id = Integer.parseInt(n);
-            if (id >= 0 && id < Enchantment.enchantmentsList.length) return Enchantment.enchantmentsList[id];
-        } catch (NumberFormatException ignored) {}
-
-        // Search by name
-        for (Enchantment e : Enchantment.enchantmentsList) {
-            if (e == null) continue;
-            if ((e.getName() != null && e.getName()
-                .toLowerCase()
-                .contains(n)) || (e.getTranslatedName(1) != null
-                    && e.getTranslatedName(1)
-                        .toLowerCase()
-                        .contains(n))) {
-                return e;
-            }
-        }
-
         return null;
     }
 }
